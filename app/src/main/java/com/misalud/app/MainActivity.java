@@ -1,3 +1,4 @@
+```
 package com.misalud.app;
 
 import android.Manifest;
@@ -8,6 +9,7 @@ import android.graphics.*;
 import android.graphics.drawable.*;
 import android.net.Uri;
 import android.os.*;
+import android.graphics.pdf.PdfRenderer;
 import android.provider.MediaStore;
 import android.view.*;
 import android.widget.*;
@@ -41,6 +43,13 @@ public class MainActivity extends Activity {
         header=row();header.setGravity(Gravity.CENTER);header.setBackgroundColor(blue);pad(header,16,16);add(root,header);
         // Cabecera centrada, sin texto de sección duplicado.
         TextView logo=txt("♡  Mi Salud",22,Color.WHITE,true);logo.setGravity(Gravity.CENTER);add(header,logo);
+        ContentValues active=selected();
+        if(active!=null){
+            LinearLayout banner=row();banner.setGravity(Gravity.CENTER);pad(banner,12,9);
+            banner.setBackgroundColor(patientColor(active));
+            TextView who=txt("★ PACIENTE ACTIVO: "+Db.str(active,"short_name"),15,Color.WHITE,true);
+            who.setGravity(Gravity.CENTER);add(banner,who);add(root,banner);
+        }
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));body=column();pad(body,14,15);body.setClipChildren(false);body.setClipToPadding(false);scroll.addView(body);
         switch(p){case "Hoy":home();break;case "Pacientes":patients();break;case "Medicamentos":medicines();break;case "Signos":vitals();break;case "Síntomas":symptoms();break;case "Citas":visits();break;case "Exámenes":exams();break;case "Historial":history();break;default:home();}
         // Único botón inferior: volver a la pantalla gráfica principal.
@@ -52,7 +61,7 @@ public class MainActivity extends Activity {
     String patientName(long id){ContentValues p=db.one("patients",id);return p==null?"Paciente eliminado":Db.str(p,"short_name");}
     int patientColor(ContentValues p){return "Mujer".equals(Db.str(p,"sex"))?pink:blue;}
     void selector(){ArrayList<ContentValues> ps=all("patients");if(ps.isEmpty()){add(body,btn("+ Crear primer paciente",blue,()->editPatient(null)));return;}
-        HorizontalScrollView hsv=new HorizontalScrollView(this);LinearLayout tabs=row();for(ContentValues p:ps){long id=Db.num(p,"_id");TextView t=txt(Db.str(p,"short_name"),14,id==patient?Color.WHITE:patientColor(p),true);pad(t,15,11);t.setBackground(shape(id==patient?patientColor(p):Color.WHITE,25));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,-2);lp.setMargins(0,0,dp(8),0);tabs.addView(t,lp);t.setOnClickListener(v->{patient=id;show(page);});}hsv.addView(tabs);add(body,hsv);gap(body,12);}
+        HorizontalScrollView hsv=new HorizontalScrollView(this);LinearLayout tabs=row();for(ContentValues p:ps){long id=Db.num(p,"_id");TextView t=txt((id==patient?"★ ":"")+Db.str(p,"short_name"),14,id==patient?Color.WHITE:patientColor(p),true);pad(t,15,11);t.setBackground(shape(id==patient?patientColor(p):Color.WHITE,25));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,-2);lp.setMargins(0,0,dp(8),0);tabs.addView(t,lp);t.setOnClickListener(v->{patient=id;show(page);});}hsv.addView(tabs);add(body,hsv);gap(body,12);}
     void home(){ContentValues p=selected();heading("¡Bienvenido a Mi Salud!");if(p==null){note(body,"Crea un paciente para comenzar.");add(body,btn("+ Agregar paciente",blue,()->editPatient(null)));return;}
         selector();LinearLayout c=card();add(c,txt("Hoy · "+new SimpleDateFormat("EEEE, d MMMM",new Locale("es","MX")).format(new Date()),17,ink,true));gap(c,8);
         long now=System.currentTimeMillis();ArrayList<String[]> events=new ArrayList<>();
@@ -74,10 +83,10 @@ public class MainActivity extends Activity {
         if(events.isEmpty())note(c,"No hay actividades programadas para hoy.");
         for(String[] e:events){TextView t=txt(new SimpleDateFormat("HH:mm",Locale.getDefault()).format(new Date(Long.parseLong(e[0])))+"   "+e[1],14,ink,false);pad(t,6,11);add(c,t);t.setOnClickListener(v->{if(e[2].equals("med"))doseDialog(db.one("medicines",Long.parseLong(e[3])),Long.parseLong(e[4]));else show("Citas");});}
         cardAdd(c);heading("Accesos rápidos");String[] names={"💊 Medicamentos","📅 Citas médicas","🧪 Exámenes","🌡️ Signos vitales","📝 Síntomas","🕘 Historial"};String[] targets={"Medicamentos","Citas","Exámenes","Signos","Síntomas","Historial"};for(int i=0;i<names.length;i+=2){LinearLayout r=row();r.setClipChildren(false);r.setClipToPadding(false);for(int j=i;j<Math.min(i+2,names.length);j++){final String target=targets[j];TextView b=btn(names[j],j%2==0?blue:Color.rgb(50,158,189),()->show(target));b.setTextSize(13);b.setPadding(dp(8),dp(10),dp(8),dp(10));b.setGravity(Gravity.CENTER);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(78),1);lp.setMargins(dp(3),dp(5),dp(3),dp(8));r.addView(b,lp);}add(body,r);} gap(body,20);TextView manage=btn("👤  Pacientes  ·  Agregar o editar",Color.rgb(93,116,139),()->show("Pacientes"));manage.setTextSize(14);add(body,manage);gap(body,12); }
-    void patients(){heading("Perfiles familiares");add(body,btn("+ Agregar paciente",blue,()->editPatient(null)));gap(body,12);for(ContentValues p:all("patients")){LinearLayout c=card();add(c,txt("● "+Db.str(p,"short_name"),19,patientColor(p),true));add(c,txt(Db.str(p,"full_name"),15,ink,false));note(c,patientAge(p)+" · "+Db.str(p,"sex"));if(!Db.str(p,"birth_date").isEmpty())note(c,"Nacimiento: "+Db.str(p,"birth_date"));if(!Db.str(p,"allergies").isEmpty())note(c,"Alergias: "+Db.str(p,"allergies"));gap(c,8);add(c,smallBtn("Editar perfil",blue,()->editPatient(p)));cardAdd(c);} }
-    void medicines(){heading("Medicamentos");selector();if(selected()==null)return;add(body,btn("+ Agregar medicamento",blue,()->editMedicine(null)));gap(body,12);for(ContentValues m:db.rows("medicines","patient_id=?",new String[]{""+patient},"_id DESC")){
+    void patients(){heading("Perfiles familiares");add(body,btn("+ Agregar paciente",blue,()->editPatient(null)));gap(body,12);for(ContentValues p:all("patients")){long id=Db.num(p,"_id");boolean active=id==patient;LinearLayout c=card();if(active)c.setBackground(shape(Color.rgb(220,242,255),18));add(c,txt((active?"★ ACTIVO · ":"● ")+Db.str(p,"short_name"),19,patientColor(p),true));add(c,txt(Db.str(p,"full_name"),15,ink,false));note(c,patientAge(p)+" · "+Db.str(p,"sex"));if(!Db.str(p,"birth_date").isEmpty())note(c,"Nacimiento: "+Db.str(p,"birth_date"));note(c,"Peso: "+(Db.str(p,"weight").isEmpty()?"No registrado":Db.str(p,"weight")+" kg"));note(c,"Estatura: "+(Db.str(p,"height").isEmpty()?"No registrada":Db.str(p,"height")+" cm"));if(!Db.str(p,"allergies").isEmpty())note(c,"Alergias: "+Db.str(p,"allergies"));gap(c,8);if(!active){add(c,smallBtn("Seleccionar como paciente activo",patientColor(p),()->{patient=id;show("Pacientes");}));gap(c,6);}add(c,smallBtn("Editar perfil",blue,()->editPatient(p)));cardAdd(c);} }
+    void medicines(){heading("Medicamentos");selector();if(selected()==null)return;add(body,btn("+ Agregar medicamento",blue,()->confirmMedicinePatient(null)));gap(body,12);for(ContentValues m:db.rows("medicines","patient_id=?",new String[]{""+patient},"_id DESC")){
         LinearLayout c=card();boolean done=expired(m);if(done)c.setAlpha(0.60f);add(c,txt((done?"✓ ":"💊 ")+Db.str(m,"name"),18,done?muted:ink,true));note(c,(done?"TRATAMIENTO FINALIZADO · ":"")+Db.str(m,"presentation")+" · Cada "+Db.str(m,"every_hours")+" horas");if(!Db.str(m,"purpose").isEmpty())note(c,"¿Para qué sirve? "+Db.str(m,"purpose"));note(c,"Indicaciones: "+Db.str(m,"instructions"));note(c,"Hasta: "+date.format(new Date(Db.num(m,"end_at")))+(Db.num(m,"active")==0?" · Inactivo":""));if(!done)note(c,"Próxima toma programada: "+datetime.format(new Date(nextDose(m))));
-        if(!Db.str(m,"photo").isEmpty())photoPreview(c,Db.str(m,"photo"));gap(c,8);LinearLayout r=row();TextView b1=smallBtn(done?"Finalizado":"Registrar toma",done?muted:Color.rgb(19,162,94),()->{if(!done)doseDialog(m,nextDose(m));});b1.setEnabled(!done);TextView b2=smallBtn("Editar",blue,()->editMedicine(m));r.addView(b1,new LinearLayout.LayoutParams(0,-2,1));r.addView(b2,new LinearLayout.LayoutParams(0,-2,1));add(c,r);gap(c,6);add(c,smallBtn("📋 Ver historial de tomas",Color.rgb(93,116,139),()->medicineHistory(m)));cardAdd(c);
+        if(!Db.str(m,"photo").isEmpty())photoPreview(c,Db.str(m,"photo"));gap(c,8);LinearLayout r=row();TextView b1=smallBtn(done?"Finalizado":"Registrar toma",done?muted:Color.rgb(19,162,94),()->{if(!done)doseDialog(m,nextDose(m));});b1.setEnabled(!done);TextView b2=smallBtn("Editar",blue,()->confirmMedicinePatient(m));r.addView(b1,new LinearLayout.LayoutParams(0,-2,1));r.addView(b2,new LinearLayout.LayoutParams(0,-2,1));add(c,r);gap(c,6);add(c,smallBtn("📋 Ver historial de tomas",Color.rgb(93,116,139),()->medicineHistory(m)));cardAdd(c);
     } }
     long nextDose(ContentValues m){long start=Db.num(m,"start_at"),step=Math.max(1,Db.num(m,"every_hours"))*3600000L,now=System.currentTimeMillis();long next=start;if(next<now)next=start+((now-start)/step)*step;for(int i=0;i<10000;i++){if(db.rows("doses","medicine_id=? AND scheduled_at=?",new String[]{""+Db.num(m,"_id"),""+next},null).isEmpty())return next;next+=step;}return next;}
     void medicineHistory(ContentValues m){if(m==null)return;LinearLayout l=column();pad(l,14,12);add(l,txt("💊 "+Db.str(m,"name"),19,ink,true));note(l,"Cada "+Db.str(m,"every_hours")+" horas · "+Db.str(m,"instructions"));gap(l,8);
@@ -181,6 +190,14 @@ public class MainActivity extends Activity {
     void pickDate(EditText e,boolean time){Calendar cal=Calendar.getInstance();try{cal.setTime((time?datetime:date).parse(value(e)));}catch(Exception ignored){}new DatePickerDialog(this,(view,y,m,d)->{cal.set(y,m,d);if(time)new TimePickerDialog(this,(tv,h,min)->{cal.set(Calendar.HOUR_OF_DAY,h);cal.set(Calendar.MINUTE,min);e.setText(datetime.format(cal.getTime()));},cal.get(Calendar.HOUR_OF_DAY),cal.get(Calendar.MINUTE),true).show();else e.setText(date.format(cal.getTime()));},cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH)).show();}
     void formLabel(LinearLayout l,String text){gap(l,9);TextView t=txt(text,14,ink,true);add(l,t);}
     boolean expired(ContentValues m){return Db.num(m,"active")!=1 || System.currentTimeMillis()>Db.num(m,"end_at")+86399999L;}
+    void confirmMedicinePatient(ContentValues m){
+        ContentValues p=selected();if(p==null)return;
+        long target=m==null?patient:Db.num(m,"patient_id");
+        if(m!=null&&target!=patient){toast("Selecciona primero al paciente del medicamento");return;}
+        new AlertDialog.Builder(this).setTitle("Confirmar paciente")
+            .setMessage("¿Vas a "+(m==null?"agregar":"editar")+" un medicamento para " +Db.str(p,"full_name")+" ("+Db.str(p,"short_name")+")?")
+            .setNegativeButton("Cancelar",null).setPositiveButton("Sí, continuar",(d,w)->editMedicine(m)).show();
+    }
     void editMedicine(ContentValues m){
         if(selected()==null)return;
         LinearLayout l=column();
@@ -239,14 +256,76 @@ public class MainActivity extends Activity {
     void editExam(ContentValues old){LinearLayout l=column();EditText name=field(l,"Tipo de examen *",Db.str(old,"name"),1),at=dateField(l,"Fecha del examen",old==null?System.currentTimeMillis():Db.num(old,"exam_at"),false),result=field(l,"Resultado / observaciones",Db.str(old,"result"),1);if(old!=null){gap(l,7);formLabel(l,"📎 Fotografía o PDF del resultado");add(l,smallBtn("📷 Fotografiar resultado",blue,()->capture("exams","attachment",Db.num(old,"_id"))));add(l,smallBtn("📎 Adjuntar imagen o PDF",blue,()->chooseFile("exams","attachment",Db.num(old,"_id"),"*/*")));}dialog(old==null?"Nuevo examen":"Editar examen",l,()->{required(name,"tipo de examen");ContentValues v=new ContentValues();v.put("patient_id",patient);v.put("name",value(name));v.put("exam_at",chooseDate(at,0,false));v.put("result",value(result));if(old==null){db.add("exams",v);toast("Examen guardado. Edita para adjuntar el archivo.");}else db.update("exams",Db.num(old,"_id"),v);});}
     void chooseFile(String table,String col,long id,String mime){pendingTable=table;pendingColumn=col;pendingId=id;pendingCamera=false;Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(mime);startActivityForResult(i,501);}
     void capture(String table,String col,long id){pendingTable=table;pendingColumn=col;pendingId=id;pendingCamera=true;Intent i=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);try{startActivityForResult(i,502);}catch(Exception ex){toast("No se encontró una aplicación de cámara");}}
-    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK||data==null||pendingId<0)return;try{
-        String uri="";if(request==501){Uri u=data.getData();if(u==null)return;try{getContentResolver().takePersistableUriPermission(u,Intent.FLAG_GRANT_READ_URI_PERMISSION);}catch(Exception ignored){}uri=u.toString();}
-        else if(request==502){Object o=data.getExtras()==null?null:data.getExtras().get("data");if(!(o instanceof Bitmap))throw new Exception("La cámara no devolvió una foto");File f=new File(getFilesDir(),"foto_"+System.currentTimeMillis()+".jpg");try(FileOutputStream out=new FileOutputStream(f)){((Bitmap)o).compress(Bitmap.CompressFormat.JPEG,90,out);}uri=Uri.fromFile(f).toString();}
+    String copyAttachment(Uri source,String extension) throws IOException {
+        File folder=new File(getFilesDir(),"attachments");if(!folder.exists()&&!folder.mkdirs())throw new IOException("No se pudo crear la carpeta de archivos");
+        File destination=new File(folder,"adjunto_"+System.currentTimeMillis()+"_"+UUID.randomUUID().toString()+extension);
+        try(InputStream in=getContentResolver().openInputStream(source);FileOutputStream out=new FileOutputStream(destination)){
+            if(in==null)throw new IOException("No se pudo leer el archivo");byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1)out.write(buf,0,n);
+        }
+        return Uri.fromFile(destination).toString();
+    }
+    @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(result!=RESULT_OK||pendingId<0)return;try{
+        String uri="";
+        if(request==501){if(data==null||data.getData()==null)throw new IOException("No se seleccionó un archivo");
+            Uri u=data.getData();String type=getContentResolver().getType(u);
+            String extension="application/pdf".equals(type)?".pdf":type!=null&&type.startsWith("image/")?".jpg":".bin";
+            // Preserve original image format when known, including PNG and WEBP.
+            if("image/png".equals(type))extension=".png";
+            if("image/webp".equals(type))extension=".webp";
+            uri=copyAttachment(u,extension);
+        }else if(request==502){Object o=data==null||data.getExtras()==null?null:data.getExtras().get("data");if(!(o instanceof Bitmap))throw new IOException("La cámara no devolvió una foto");
+            File folder=new File(getFilesDir(),"attachments");if(!folder.exists()&&!folder.mkdirs())throw new IOException("No se pudo crear la carpeta");
+            File f=new File(folder,"foto_"+System.currentTimeMillis()+".jpg");try(FileOutputStream out=new FileOutputStream(f)){((Bitmap)o).compress(Bitmap.CompressFormat.JPEG,90,out);}uri=Uri.fromFile(f).toString();
+        }
         if(!uri.isEmpty()){ContentValues v=new ContentValues();v.put(pendingColumn,uri);db.update(pendingTable,pendingId,v);toast("Archivo adjuntado correctamente");show(page);}
     }catch(Exception ex){toast("No se pudo guardar: "+ex.getMessage());}finally{pendingId=-1;}}
     void fileButton(LinearLayout l,String label,String uri){if(uri.isEmpty())return;add(l,smallBtn("📎 "+label,Color.rgb(46,147,174),()->openFile(uri)));}
-    void openFile(String uri){try{Uri u=Uri.parse(uri);Intent i=new Intent(Intent.ACTION_VIEW).setDataAndType(u,"content".equals(u.getScheme())?getContentResolver().getType(u):"image/jpeg").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivity(Intent.createChooser(i,"Abrir archivo"));}catch(Exception ex){toast("No se puede abrir el archivo. Comprueba que siga disponible.");}}
-    void photoPreview(LinearLayout l,String uri){try{ImageView iv=new ImageView(this);iv.setImageURI(Uri.parse(uri));iv.setAdjustViewBounds(true);iv.setMaxHeight(dp(150));add(l,iv);}catch(Exception ignored){}}
+    void openFile(String uri){
+        try{
+            Uri u=Uri.parse(uri);String mime="";
+            if("content".equals(u.getScheme()))mime=getContentResolver().getType(u);
+            else if(u.getPath()!=null){String path=u.getPath().toLowerCase(Locale.ROOT);if(path.endsWith(".pdf"))mime="application/pdf";else if(path.endsWith(".png"))mime="image/png";else if(path.endsWith(".webp"))mime="image/webp";else mime="image/jpeg";}
+            if("application/pdf".equals(mime)){showPdf(u);return;}
+            if(mime!=null&&mime.startsWith("image/")){showImage(u);return;}
+            // Other file formats may need a compatible app and a content provider.
+            toast("Formato no compatible con el visor integrado");
+        }catch(Exception ex){toast("No se pudo abrir el archivo: "+ex.getMessage());}
+    }
+    void showImage(Uri uri) throws IOException {
+        Bitmap bitmap;try(InputStream in=getContentResolver().openInputStream(uri)){
+            if(in==null)throw new IOException("Archivo no disponible");bitmap=BitmapFactory.decodeStream(in);
+        }
+        if(bitmap==null)throw new IOException("Imagen no válida");
+        ImageView view=new ImageView(this);view.setImageBitmap(bitmap);view.setAdjustViewBounds(true);view.setPadding(dp(8),dp(8),dp(8),dp(8));
+        ScrollView scroll=new ScrollView(this);scroll.addView(view);new AlertDialog.Builder(this).setTitle("Fotografía adjunta").setView(scroll).setPositiveButton("Cerrar",null).show();
+    }
+    void showPdf(Uri uri) throws IOException {
+        // PdfRenderer supports file descriptors, so legacy content:// and internal file:// both work.
+        ParcelFileDescriptor fd;
+        if("file".equals(uri.getScheme()))fd=ParcelFileDescriptor.open(new File(uri.getPath()),ParcelFileDescriptor.MODE_READ_ONLY);
+        else fd=getContentResolver().openFileDescriptor(uri,"r");
+        if(fd==null)throw new IOException("PDF no disponible");
+        try(PdfRenderer renderer=new PdfRenderer(fd)){
+            if(renderer.getPageCount()==0)throw new IOException("PDF vacío");
+            LinearLayout pages=column();pad(pages,8,8);
+            // Display first pages without exhausting memory on very long PDFs.
+            int count=Math.min(renderer.getPageCount(),10);
+            for(int i=0;i<count;i++){
+                try(PdfRenderer.Page page=renderer.openPage(i)){
+                    float scale=Math.min(2f,1200f/Math.max(1,page.getWidth()));
+                    Bitmap bmp=Bitmap.createBitmap(Math.max(1,(int)(page.getWidth()*scale)),Math.max(1,(int)(page.getHeight()*scale)),Bitmap.Config.ARGB_8888);
+                    bmp.eraseColor(Color.WHITE);page.render(bmp,null,null,PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                    ImageView iv=new ImageView(this);iv.setImageBitmap(bmp);iv.setAdjustViewBounds(true);add(pages,iv);gap(pages,8);
+                }
+            }
+            if(renderer.getPageCount()>count)note(pages,"Se muestran las primeras "+count+" páginas de "+renderer.getPageCount()+".");
+            ScrollView scroll=new ScrollView(this);scroll.addView(pages);
+            new AlertDialog.Builder(this).setTitle("Documento PDF").setView(scroll).setPositiveButton("Cerrar",null).show();
+        }
+    }
+    void photoPreview(LinearLayout l,String uri){try{
+        ImageView iv=new ImageView(this);iv.setImageURI(Uri.parse(uri));iv.setAdjustViewBounds(true);iv.setMaxHeight(dp(150));add(l,iv);
+    }catch(Exception ignored){}}
     class VitalChart extends View {String kind;ArrayList<ContentValues> vals;Paint p=new Paint(3);VitalChart(String k,ArrayList<ContentValues> v){super(MainActivity.this);kind=k;vals=v;setMinimumHeight(dp(180));} @Override protected void onMeasure(int w,int h){setMeasuredDimension(MeasureSpec.getSize(w),dp(185));}
         @Override protected void onDraw(Canvas c){super.onDraw(c);int n=Math.min(30,vals.size());if(n<2)return;float left=dp(18),right=getWidth()-dp(16),top=dp(22),bottom=getHeight()-dp(25);double min=Double.MAX_VALUE,max=-Double.MAX_VALUE;
             for(int i=vals.size()-n;i<vals.size();i++){ContentValues v=vals.get(i);double x=v.getAsDouble("value1");min=Math.min(min,x);max=Math.max(max,x);if(kind.equals("Presión")){double y=v.getAsDouble("value2");min=Math.min(min,y);max=Math.max(max,y);}}
@@ -257,3 +336,5 @@ public class MainActivity extends Activity {
         void drawSeries(Canvas c,int n,float left,float right,float top,float bottom,double min,double max,boolean second,int color){p.setColor(color);p.setStrokeWidth(dp(2.5f));float px=0,py=0;for(int j=0;j<n;j++){ContentValues v=vals.get(vals.size()-n+j);double val=v.getAsDouble(second?"value2":"value1");float x=left+(right-left)*j/(n-1f),y=(float)(bottom-(val-min)/(max-min)*(bottom-top));if(j>0)c.drawLine(px,py,x,y,p);c.drawCircle(x,y,dp(3),p);px=x;py=y;}}
     }
 }
+
+```
