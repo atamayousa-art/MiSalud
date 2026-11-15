@@ -13,7 +13,7 @@ public class AlarmReceiver extends android.content.BroadcastReceiver {
         return PendingIntent.getBroadcast(c,request,i,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
     static void schedule(Context c,ContentValues m){
-        if(m==null || Db.num(m,"active")!=1)return;
+        if(m==null || Db.num(m,"active")!=1 || System.currentTimeMillis()>Db.num(m,"end_at")+86399999L)return;
         long id=Db.num(m,"_id"),start=Db.num(m,"start_at"),end=Db.num(m,"end_at");
         long step=Math.max(1,Db.num(m,"every_hours"))*3600000L;
         long now=System.currentTimeMillis(),next=start;
@@ -56,7 +56,7 @@ public class AlarmReceiver extends android.content.BroadcastReceiver {
             ContentValues v=db.one("visits",id);if(v==null)return;
             title="Próxima consulta o visita";body=Db.str(v,"title")+" · "+new SimpleDateFormat("dd/MM HH:mm",Locale.getDefault()).format(new Date(Db.num(v,"visit_at")));
         }else{
-            ContentValues m=db.one("medicines",id);if(m==null||Db.num(m,"active")!=1)return;
+            ContentValues m=db.one("medicines",id);if(m==null||Db.num(m,"active")!=1||System.currentTimeMillis()>Db.num(m,"end_at")+86399999L)return;
             ContentValues p=db.one("patients",Db.num(m,"patient_id"));
             title="Medicamento de "+Db.str(p,"short_name");body=Db.str(m,"name")+" · "+Db.str(m,"instructions");
             if("medicine".equals(action))schedule(c,m);
