@@ -21,7 +21,7 @@ public class MainActivity extends Activity {
     String pendingTable="",pendingColumn="";long pendingId=-1;boolean pendingCamera=false;
     @Override public void onCreate(Bundle b){super.onCreate(b);db=new Db(this);getWindow().setStatusBarColor(blue);getWindow().setNavigationBarColor(Color.WHITE);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);AlarmReceiver.channel(this);
         if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},22);
-        if(db.rows("patients",null,null,null).isEmpty())new AlertDialog.Builder(this).setTitle("Bienvenido a Mi Salud").setMessage("Comencemos creando el primer perfil. Solo son obligatorios el nombre completo, nombre corto, edad y sexo.").setPositiveButton("Crear perfil",(d,w)->editPatient(null)).setCancelable(false).show();
+        if(db.rows("patients",null,null,null).isEmpty())new AlertDialog.Builder(this).setTitle("Bienvenido a Mi Salud").setMessage("Comencemos creando el primer perfil. Solo son obligatorios el nombre completo, nombre corto, fecha de nacimiento y sexo.").setPositiveButton("Crear perfil",(d,w)->editPatient(null)).setCancelable(false).show();
         show("Hoy");}
     int dp(float n){return (int)(getResources().getDisplayMetrics().density*n+.5f);}
     GradientDrawable shape(int color,int radius){GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(radius));return g;}
@@ -73,8 +73,8 @@ public class MainActivity extends Activity {
         events.sort(Comparator.comparingLong(a->Long.parseLong(a[0])));
         if(events.isEmpty())note(c,"No hay actividades programadas para hoy.");
         for(String[] e:events){TextView t=txt(new SimpleDateFormat("HH:mm",Locale.getDefault()).format(new Date(Long.parseLong(e[0])))+"   "+e[1],14,ink,false);pad(t,6,11);add(c,t);t.setOnClickListener(v->{if(e[2].equals("med"))doseDialog(db.one("medicines",Long.parseLong(e[3])),Long.parseLong(e[4]));else show("Citas");});}
-        cardAdd(c);heading("Accesos rápidos");String[] names={"💊 Medicamentos","📅 Citas médicas","🧪 Exámenes","🌡️ Signos vitales","📝 Síntomas","🕘 Historial"};String[] targets={"Medicamentos","Citas","Exámenes","Signos","Síntomas","Historial"};for(int i=0;i<names.length;i+=2){LinearLayout r=row();r.setClipChildren(false);r.setClipToPadding(false);for(int j=i;j<Math.min(i+2,names.length);j++){final String target=targets[j];TextView b=btn(names[j],j%2==0?blue:Color.rgb(50,158,189),()->show(target));b.setTextSize(13);b.setPadding(dp(8),dp(10),dp(8),dp(10));b.setGravity(Gravity.CENTER);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(78),1);lp.setMargins(dp(3),dp(5),dp(3),dp(8));r.addView(b,lp);}add(body,r);} }
-    void patients(){heading("Perfiles familiares");add(body,btn("+ Agregar paciente",blue,()->editPatient(null)));gap(body,12);for(ContentValues p:all("patients")){LinearLayout c=card();add(c,txt("● "+Db.str(p,"short_name"),19,patientColor(p),true));add(c,txt(Db.str(p,"full_name"),15,ink,false));note(c,Db.str(p,"age")+" años · "+Db.str(p,"sex"));if(!Db.str(p,"birth_date").isEmpty())note(c,"Nacimiento: "+Db.str(p,"birth_date"));if(!Db.str(p,"allergies").isEmpty())note(c,"Alergias: "+Db.str(p,"allergies"));gap(c,8);add(c,smallBtn("Editar perfil",blue,()->editPatient(p)));cardAdd(c);} }
+        cardAdd(c);heading("Accesos rápidos");String[] names={"💊 Medicamentos","📅 Citas médicas","🧪 Exámenes","🌡️ Signos vitales","📝 Síntomas","🕘 Historial"};String[] targets={"Medicamentos","Citas","Exámenes","Signos","Síntomas","Historial"};for(int i=0;i<names.length;i+=2){LinearLayout r=row();r.setClipChildren(false);r.setClipToPadding(false);for(int j=i;j<Math.min(i+2,names.length);j++){final String target=targets[j];TextView b=btn(names[j],j%2==0?blue:Color.rgb(50,158,189),()->show(target));b.setTextSize(13);b.setPadding(dp(8),dp(10),dp(8),dp(10));b.setGravity(Gravity.CENTER);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(78),1);lp.setMargins(dp(3),dp(5),dp(3),dp(8));r.addView(b,lp);}add(body,r);} gap(body,20);TextView manage=btn("👤  Pacientes  ·  Agregar o editar",Color.rgb(93,116,139),()->show("Pacientes"));manage.setTextSize(14);add(body,manage);gap(body,12); }
+    void patients(){heading("Perfiles familiares");add(body,btn("+ Agregar paciente",blue,()->editPatient(null)));gap(body,12);for(ContentValues p:all("patients")){LinearLayout c=card();add(c,txt("● "+Db.str(p,"short_name"),19,patientColor(p),true));add(c,txt(Db.str(p,"full_name"),15,ink,false));note(c,patientAge(p)+" · "+Db.str(p,"sex"));if(!Db.str(p,"birth_date").isEmpty())note(c,"Nacimiento: "+Db.str(p,"birth_date"));if(!Db.str(p,"allergies").isEmpty())note(c,"Alergias: "+Db.str(p,"allergies"));gap(c,8);add(c,smallBtn("Editar perfil",blue,()->editPatient(p)));cardAdd(c);} }
     void medicines(){heading("Medicamentos");selector();if(selected()==null)return;add(body,btn("+ Agregar medicamento",blue,()->editMedicine(null)));gap(body,12);for(ContentValues m:db.rows("medicines","patient_id=?",new String[]{""+patient},"_id DESC")){
         LinearLayout c=card();boolean done=expired(m);if(done)c.setAlpha(0.60f);add(c,txt((done?"✓ ":"💊 ")+Db.str(m,"name"),18,done?muted:ink,true));note(c,(done?"TRATAMIENTO FINALIZADO · ":"")+Db.str(m,"presentation")+" · Cada "+Db.str(m,"every_hours")+" horas");if(!Db.str(m,"purpose").isEmpty())note(c,"¿Para qué sirve? "+Db.str(m,"purpose"));note(c,"Indicaciones: "+Db.str(m,"instructions"));note(c,"Hasta: "+date.format(new Date(Db.num(m,"end_at")))+(Db.num(m,"active")==0?" · Inactivo":""));if(!done)note(c,"Próxima toma programada: "+datetime.format(new Date(nextDose(m))));
         if(!Db.str(m,"photo").isEmpty())photoPreview(c,Db.str(m,"photo"));gap(c,8);LinearLayout r=row();TextView b1=smallBtn(done?"Finalizado":"Registrar toma",done?muted:Color.rgb(19,162,94),()->{if(!done)doseDialog(m,nextDose(m));});b1.setEnabled(!done);TextView b2=smallBtn("Editar",blue,()->editMedicine(m));r.addView(b1,new LinearLayout.LayoutParams(0,-2,1));r.addView(b2,new LinearLayout.LayoutParams(0,-2,1));add(c,r);gap(c,6);add(c,smallBtn("📋 Ver historial de tomas",Color.rgb(93,116,139),()->medicineHistory(m)));cardAdd(c);
@@ -119,11 +119,62 @@ public class MainActivity extends Activity {
     int parse(EditText e,String label){try{return Integer.parseInt(value(e));}catch(Exception ex){throw new IllegalArgumentException(label+" debe ser un número");}}
     double decimal(EditText e,String label){try{return Double.parseDouble(value(e).replace(',','.'));}catch(Exception ex){throw new IllegalArgumentException(label+" debe ser numérico");}}
     void required(EditText e,String label){if(value(e).isEmpty())throw new IllegalArgumentException("Falta "+label);}
-    void editPatient(ContentValues p){LinearLayout l=column();EditText full=field(l,"Nombre completo *",Db.str(p,"full_name"),1),shortn=field(l,"Nombre corto *",Db.str(p,"short_name"),1),age=field(l,"Edad en años *",Db.str(p,"age"),2);
-        Spinner sex=new Spinner(this);String[] sexes={"Seleccionar sexo *","Hombre","Mujer"};sex.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,sexes));if(p!=null)sex.setSelection("Hombre".equals(Db.str(p,"sex"))?1:2);add(l,sex);
-        formLabel(l,"🎂 Fecha de nacimiento (opcional)");EditText birth=field(l,"dd/MM/yyyy",Db.str(p,"birth_date"),1);
-        EditText weight=field(l,"Peso (kg), opcional",Db.str(p,"weight"),8194),height=field(l,"Estatura (cm), opcional",Db.str(p,"height"),8194),allergy=field(l,"Alergias, opcional",Db.str(p,"allergies"),1);
-        dialog(p==null?"Nuevo paciente":"Editar paciente",l,()->{required(full,"nombre completo");required(shortn,"nombre corto");int a=parse(age,"Edad");if(a<0||a>125)throw new IllegalArgumentException("Edad fuera de rango");if(sex.getSelectedItemPosition()==0)throw new IllegalArgumentException("Selecciona el sexo");ContentValues v=new ContentValues();v.put("full_name",value(full));v.put("short_name",value(shortn));v.put("age",a);v.put("sex",sex.getSelectedItem().toString());if(!value(birth).isEmpty()){long born=chooseDate(birth,0,false);if(born>System.currentTimeMillis())throw new IllegalArgumentException("La fecha de nacimiento no puede ser futura");}v.put("birth_date",value(birth));v.put("weight",value(weight));v.put("height",value(height));v.put("allergies",value(allergy));if(p==null)patient=db.add("patients",v);else{db.update("patients",Db.num(p,"_id"),v);patient=Db.num(p,"_id");}});
+    String patientAge(ContentValues p){
+        String b=Db.str(p,"birth_date");
+        if(!b.isEmpty())try{
+            Calendar born=Calendar.getInstance(),today=Calendar.getInstance();born.setTime(date.parse(b));
+            int years=today.get(Calendar.YEAR)-born.get(Calendar.YEAR);
+            if(today.get(Calendar.MONTH)<born.get(Calendar.MONTH)||(today.get(Calendar.MONTH)==born.get(Calendar.MONTH)&&today.get(Calendar.DAY_OF_MONTH)<born.get(Calendar.DAY_OF_MONTH)))years--;
+            return Math.max(0,years)+" años";
+        }catch(Exception ignored){}
+        return Db.str(p,"age").isEmpty()?"Edad no registrada":Db.str(p,"age")+" años";
+    }
+    void editPatient(ContentValues p){
+        LinearLayout l=column();
+        EditText full=field(l,"Nombre completo *",Db.str(p,"full_name"),1);
+        EditText shortn=field(l,"Nombre corto *",Db.str(p,"short_name"),1);
+        Spinner sex=new Spinner(this);
+        String[] sexes={"Seleccionar sexo *","Hombre","Mujer"};
+        sex.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,sexes));
+        if(p!=null)sex.setSelection("Hombre".equals(Db.str(p,"sex"))?1:2);
+        add(l,sex);
+        formLabel(l,"🎂 Fecha de nacimiento *");
+        LinearLayout birthRow=row();
+        EditText birth=field(birthRow,"Día / Mes / Año",Db.str(p,"birth_date"),1);
+        birth.setFocusable(false);birth.setClickable(true);
+        birthRow.removeView(birth);
+        birthRow.addView(birth,new LinearLayout.LayoutParams(0,-2,1));
+        TextView calendar=smallBtn("📅 Elegir",blue,()->pickBirthDate(birth));
+        birthRow.addView(calendar);add(l,birthRow);
+        birth.setOnClickListener(v->pickBirthDate(birth));
+        EditText weight=field(l,"Peso (kg), opcional",Db.str(p,"weight"),8194);
+        EditText height=field(l,"Estatura (cm), opcional",Db.str(p,"height"),8194);
+        EditText allergy=field(l,"Alergias, opcional",Db.str(p,"allergies"),1);
+        dialog(p==null?"Nuevo paciente":"Editar paciente",l,()->{
+            required(full,"nombre completo");required(shortn,"nombre corto");
+            if(sex.getSelectedItemPosition()==0)throw new IllegalArgumentException("Selecciona el sexo");
+            required(birth,"fecha de nacimiento");
+            long bornMs=chooseDate(birth,0,false);
+            if(bornMs>System.currentTimeMillis())throw new IllegalArgumentException("La fecha de nacimiento no puede ser futura");
+            Calendar born=Calendar.getInstance(),today=Calendar.getInstance();born.setTimeInMillis(bornMs);
+            int years=today.get(Calendar.YEAR)-born.get(Calendar.YEAR);
+            if(today.get(Calendar.MONTH)<born.get(Calendar.MONTH)||(today.get(Calendar.MONTH)==born.get(Calendar.MONTH)&&today.get(Calendar.DAY_OF_MONTH)<born.get(Calendar.DAY_OF_MONTH)))years--;
+            if(years<0||years>125)throw new IllegalArgumentException("Verifica la fecha de nacimiento");
+            ContentValues v=new ContentValues();v.put("full_name",value(full));v.put("short_name",value(shortn));
+            v.put("age",years);v.put("sex",sex.getSelectedItem().toString());v.put("birth_date",value(birth));
+            v.put("weight",value(weight));v.put("height",value(height));v.put("allergies",value(allergy));
+            if(p==null)patient=db.add("patients",v);
+            else{db.update("patients",Db.num(p,"_id"),v);patient=Db.num(p,"_id");}
+        });
+    }
+    void pickBirthDate(EditText e){
+        Calendar cal=Calendar.getInstance();cal.add(Calendar.YEAR,-5);
+        try{cal.setTime(date.parse(value(e)));}catch(Exception ignored){}
+        DatePickerDialog picker=new DatePickerDialog(this,(view,y,m,d)->{
+            Calendar chosen=Calendar.getInstance();chosen.clear();chosen.set(y,m,d);
+            e.setText(date.format(chosen.getTime()));
+        },cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH));
+        picker.getDatePicker().setMaxDate(System.currentTimeMillis());picker.show();
     }
     long chooseDate(EditText e,long defaultMs,boolean time){try{Date d=(time?datetime:date).parse(value(e));if(d==null)throw new Exception();return d.getTime();}catch(Exception ex){throw new IllegalArgumentException("Fecha inválida; usa "+(time?"dd/MM/yyyy HH:mm":"dd/MM/yyyy"));}}
     EditText dateField(LinearLayout l,String label,long val,boolean time){LinearLayout r=row();EditText e=field(r,label,(time?datetime:date).format(new Date(val)),1);r.removeView(e);r.addView(e,new LinearLayout.LayoutParams(0,-2,1));TextView pick=smallBtn("📅",blue,()->pickDate(e,time));r.addView(pick);add(l,r);return e;}
