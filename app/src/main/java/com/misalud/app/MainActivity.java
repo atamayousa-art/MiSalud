@@ -1,4 +1,3 @@
-```
 package com.misalud.app;
 
 import android.Manifest;
@@ -336,5 +335,3 @@ public class MainActivity extends Activity {
         void drawSeries(Canvas c,int n,float left,float right,float top,float bottom,double min,double max,boolean second,int color){p.setColor(color);p.setStrokeWidth(dp(2.5f));float px=0,py=0;for(int j=0;j<n;j++){ContentValues v=vals.get(vals.size()-n+j);double val=v.getAsDouble(second?"value2":"value1");float x=left+(right-left)*j/(n-1f),y=(float)(bottom-(val-min)/(max-min)*(bottom-top));if(j>0)c.drawLine(px,py,x,y,p);c.drawCircle(x,y,dp(3),p);px=x;py=y;}}
     }
 }
-
-```
