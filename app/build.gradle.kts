@@ -6,8 +6,8 @@ android {
         applicationId = "com.misalud.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1-beta"
+        versionCode = 3
+        versionName = "1.2-beta"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

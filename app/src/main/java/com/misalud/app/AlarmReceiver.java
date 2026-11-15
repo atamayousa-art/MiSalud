@@ -18,6 +18,8 @@ public class AlarmReceiver extends android.content.BroadcastReceiver {
         long step=Math.max(1,Db.num(m,"every_hours"))*3600000L;
         long now=System.currentTimeMillis(),next=start;
         if(next<=now)next=start+((now-start)/step+1)*step;
+        Db db=new Db(c);
+        while(next<=end+86399999L && !db.rows("doses","medicine_id=? AND scheduled_at=?",new String[]{""+id,""+next},null).isEmpty())next+=step;
         if(next>end+86399999L)return;
         scheduleAt(c,"medicine",id,next,(int)(id*10+1));
     }
@@ -44,6 +46,7 @@ public class AlarmReceiver extends android.content.BroadcastReceiver {
         Db db=new Db(c);
         if("taken".equals(action)||"skipped".equals(action)){
             ContentValues d=new ContentValues();d.put("medicine_id",id);d.put("scheduled_at",when);d.put("recorded_at",System.currentTimeMillis());d.put("status","taken".equals(action)?"Tomado":"No tomado");db.add("doses",d);
+            ContentValues medicine=db.one("medicines",id);if(medicine!=null)schedule(c,medicine);
             ((NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE)).cancel((int)(id+1000));return;
         }
         if("snooze".equals(action)){
