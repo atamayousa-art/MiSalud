@@ -20,12 +20,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-
       - name: Configurar Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: ''
-
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -36,11 +34,24 @@ jobs:
           unzip -q gradle-8.9-bin.zip
           echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
 
-      - name: Compilar APK
-        run: gradle assembleDebug --no-daemon
+      - name: Restaurar firma permanente
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/misalud-release.jks"
+          chmod 600 "$RUNNER_TEMP/misalud-release.jks"
 
-      - name: Guardar APK
+      - name: Compilar APK firmado
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/misalud-release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle assembleRelease --no-daemon
+
+      - name: Guardar APK firmado
         uses: actions/upload-artifact@v4
         with:
-          name: MiSalud-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: MiSalud-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
